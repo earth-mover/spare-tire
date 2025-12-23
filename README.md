@@ -74,6 +74,7 @@ wheel-rename ./downloads/pkg.whl my_pkg_old -o ./renamed/
 ```
 
 Options:
+
 - `-o, --output`: Output directory (default: same as input)
 - `--no-update-imports`: Don't update import statements in Python files
 
@@ -92,6 +93,7 @@ wheel-rename download icechunk --version "<2" -i https://pypi.anaconda.org/scien
 ```
 
 Options:
+
 - `-o, --output`: Output directory (default: current directory)
 - `-i, --index-url`: Package index URL (default: PyPI)
 - `--version`: PEP 440 version specifier (e.g., `==1.0.0`, `<2`, `>=1.0,<2`)
