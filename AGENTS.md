@@ -38,14 +38,24 @@ src/wheel_rename/
 ├── cli.py           # Click-based CLI with rich output
 ├── download.py      # PEP 503 index client using pypi-simple
 ├── rename.py        # Core wheel manipulation logic
-└── server/          # (feature branch) Proxy server
+└── server/          # Proxy server for on-the-fly renaming
+    ├── __init__.py
+    ├── app.py       # FastAPI application with PEP 503 endpoints
+    ├── config.py    # Configuration (TOML + CLI) with name normalization
+    ├── html.py      # PEP 503 HTML generation
+    ├── stream.py    # Wheel streaming and on-the-fly renaming
+    └── upstream.py  # Async HTTP client for upstream indexes
 
 tests/
 ├── conftest.py              # Shared fixtures for venv creation
 ├── test_rename.py           # Unit tests for rename functions
 ├── test_integration.py      # Import rewriting tests
 ├── test_dual_install.py     # Multi-package isolation tests
-└── test_icechunk_integration.py  # Real icechunk wheel tests
+├── test_icechunk_integration.py  # Real icechunk wheel tests
+└── fixtures/
+    └── dual-install/        # Example project for multi-version install
+        ├── pyproject.toml   # uv config with both icechunk versions
+        └── README.md        # Usage documentation
 ```
 
 ## Important Functions
@@ -134,11 +144,104 @@ Core:
 - `pypi-simple` - PEP 503 index client
 - `rich` - Pretty terminal output
 
-Server (optional, on feature branch):
+Server (optional):
 
 - `fastapi` - Web framework
 - `uvicorn` - ASGI server
 - `httpx` - Async HTTP client
+
+## Proxy Server
+
+The proxy server enables `uv sync` to install renamed packages without manual wheel downloading.
+
+### How It Works
+
+1. Start proxy: `wheel-rename serve -u <upstream> -r "pkg=pkg_v1:<version>"`
+2. Proxy serves `/simple/pkg_v1/` endpoint with renamed wheel links
+3. When uv requests the wheel, proxy downloads from upstream, renames on-the-fly, serves renamed wheel
+4. uv installs `pkg_v1` as a normal package
+
+### Server Modules
+
+- `config.py`: Loads TOML config or CLI args, handles PEP 503 name normalization
+- `app.py`: FastAPI routes for `/simple/`, `/simple/{project}/`, `/simple/{project}/{filename}`
+- `upstream.py`: Async client to fetch packages from upstream indexes
+- `stream.py`: Downloads wheel, calls `rename_wheel_from_bytes()`, returns renamed bytes
+- `html.py`: Generates PEP 503 HTML with rewritten filenames
+
+### Configuration Options
+
+```toml
+[tool.uv]
+extra-index-url = ["http://127.0.0.1:8123/simple/"]
+prerelease = "allow"
+index-strategy = "unsafe-best-match"  # Required for mixing indexes
+resolution = "highest"
+```
+
+## Implementing Multi-Version Install in a New Repo
+
+To set up a project that installs both `icechunk` (v2) and `icechunk_v1` (v1):
+
+### Step 1: Install wheel-rename with server extras
+
+```bash
+pip install wheel-rename[server]
+# or
+uvx --with wheel-rename[server] wheel-rename serve --help
+```
+
+### Step 2: Start the proxy server
+
+```bash
+wheel-rename serve \
+    -u https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
+    -r "icechunk=icechunk_v1:<2" \
+    --port 8123
+```
+
+### Step 3: Configure pyproject.toml
+
+```toml
+[project]
+name = "my-project"
+requires-python = ">=3.12"
+dependencies = [
+    "icechunk>=2.0.0.dev0",  # v2 from nightly
+    "icechunk_v1",            # v1 renamed, from proxy
+]
+
+[tool.uv]
+extra-index-url = [
+    "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple",
+    "http://127.0.0.1:8123/simple/",
+]
+prerelease = "allow"
+index-strategy = "unsafe-best-match"
+resolution = "highest"
+```
+
+### Step 4: Install with uv sync
+
+```bash
+uv sync
+```
+
+### Step 5: Use both versions
+
+```python
+import icechunk      # v2
+import icechunk_v1   # v1
+
+# Both are fully isolated and functional
+```
+
+### Reference Implementation
+
+See `tests/fixtures/dual-install/` for a complete working example with:
+
+- `pyproject.toml` - Full uv configuration
+- `README.md` - Detailed usage instructions
 
 ## Git Workflow
 
