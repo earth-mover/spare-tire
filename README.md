@@ -38,7 +38,7 @@ uvx wheel-rename download icechunk \
 uvx wheel-rename inspect ./wheels/icechunk-*.whl
 
 # 3. Rename icechunk -> icechunk_v1
-uvx wheel-rename rename ./wheels/icechunk-*.whl icechunk_v1 -o ./wheels/
+uvx wheel-rename ./wheels/icechunk-*.whl icechunk_v1 -o ./wheels/
 
 # 4. Create a venv and install both versions
 uv venv
@@ -52,21 +52,43 @@ uv run python -c "import icechunk; print(f'v2: {icechunk.__version__}')"
 
 ## Commands
 
-### rename
+### rename (default)
 
-Rename a wheel package:
+Rename a wheel package. This is the default command when the first argument is a `.whl` file:
 
 ```bash
+# These are equivalent:
+wheel-rename <wheel_path> <new_name> [-o <output_dir>]
 wheel-rename rename <wheel_path> <new_name> [-o <output_dir>]
 
 # Examples:
-wheel-rename rename icechunk-1.0.0-cp312-cp312-linux_x86_64.whl icechunk_v1
-wheel-rename rename ./downloads/pkg.whl my_pkg_old -o ./renamed/
+wheel-rename icechunk-1.0.0-cp312-cp312-linux_x86_64.whl icechunk_v1
+wheel-rename ./downloads/pkg.whl my_pkg_old -o ./renamed/
 ```
 
 Options:
 - `-o, --output`: Output directory (default: same as input)
 - `--no-update-imports`: Don't update import statements in Python files
+
+### download
+
+Download a compatible wheel from a package index:
+
+```bash
+wheel-rename download <package> [-o <output_dir>] [-i <index_url>] [--version <spec>]
+
+# Examples:
+wheel-rename download numpy -o ./wheels/
+wheel-rename download icechunk -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
+wheel-rename download requests --version ">=2.0,<3"
+wheel-rename download icechunk --version "<2" -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
+```
+
+Options:
+- `-o, --output`: Output directory (default: current directory)
+- `-i, --index-url`: Package index URL (default: PyPI)
+- `--version`: PEP 440 version specifier (e.g., `==1.0.0`, `<2`, `>=1.0,<2`)
+- `--list`: List available wheels without downloading
 
 ### inspect
 
@@ -140,4 +162,4 @@ uv run ruff format src tests
 
 ## License
 
-MIT
+BSD-3-Clause
