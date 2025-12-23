@@ -146,5 +146,5 @@ def download_compatible_wheel(
             print(f"Found: {wheel.filename}")
 
         output_path = output_dir / wheel.filename
-        client.download_package(wheel, output_path, progress=show_progress)
+        client.download_package(wheel, output_path)
         return output_path
