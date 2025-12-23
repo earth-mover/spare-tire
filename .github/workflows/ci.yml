@@ -127,37 +127,9 @@ jobs:
           # Verify server is running
           curl -s http://127.0.0.1:8123/simple/ | grep icechunk_v1
 
-      - name: Create test project with both icechunk versions
-        run: |
-          mkdir -p test-project
-          cd test-project
-
-          # Create pyproject.toml with both versions as dependencies
-          cat > pyproject.toml << 'TOML'
-          [project]
-          name = "dual-icechunk-test"
-          version = "0.1.0"
-          requires-python = ">=3.11"
-          dependencies = [
-              "icechunk>=2.0.0.dev0",  # v2 from nightly
-              "icechunk_v1",            # v1 renamed, from our proxy
-          ]
-
-          [tool.uv]
-          # PyPI for most deps, nightly for icechunk v2, proxy for icechunk_v1
-          extra-index-url = [
-              "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple",
-              "http://127.0.0.1:8123/simple/",
-          ]
-          # Allow pre-release versions for icechunk
-          prerelease = "allow"
-          TOML
-
-          cat pyproject.toml
-
       - name: Run uv sync to install both versions
         run: |
-          cd test-project
+          cd tests/fixtures/dual-install
 
           # Use uv sync to install both packages with all their dependencies
           uv sync --python 3.12
@@ -168,7 +140,7 @@ jobs:
 
       - name: Verify both versions are installed and isolated
         run: |
-          cd test-project
+          cd tests/fixtures/dual-install
           uv run python -c "
           import sys
 
