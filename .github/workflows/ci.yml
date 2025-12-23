@@ -127,29 +127,49 @@ jobs:
           # Verify server is running
           curl -s http://127.0.0.1:8123/simple/ | grep icechunk_v1
 
-      - name: Create test venv and install both versions
+      - name: Create test project with both icechunk versions
         run: |
-          # Create a test venv
-          uv venv test-venv --python 3.12
+          mkdir -p test-project
+          cd test-project
 
-          # Install icechunk_v1 (v1.x) from our proxy
-          echo "Installing icechunk_v1 from proxy..."
-          VIRTUAL_ENV=test-venv uv pip install icechunk_v1 \
-            --index-url http://127.0.0.1:8123/simple/ \
-            --no-deps
+          # Create pyproject.toml with both versions as dependencies
+          cat > pyproject.toml << 'TOML'
+          [project]
+          name = "dual-icechunk-test"
+          version = "0.1.0"
+          requires-python = ">=3.11"
+          dependencies = [
+              "icechunk>=2.0.0.dev0",  # v2 from nightly
+              "icechunk_v1",            # v1 renamed, from our proxy
+          ]
 
-          # Install icechunk (v2.x) from nightly
-          echo "Installing icechunk v2 from nightly..."
-          VIRTUAL_ENV=test-venv uv pip install icechunk \
-            --index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
-            --no-deps
+          [tool.uv]
+          # PyPI for most deps, nightly for icechunk v2, proxy for icechunk_v1
+          extra-index-url = [
+              "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple",
+              "http://127.0.0.1:8123/simple/",
+          ]
+          # Allow pre-release versions for icechunk
+          prerelease = "allow"
+          TOML
 
-          # List installed packages
-          VIRTUAL_ENV=test-venv uv pip list | grep -i icechunk
+          cat pyproject.toml
+
+      - name: Run uv sync to install both versions
+        run: |
+          cd test-project
+
+          # Use uv sync to install both packages with all their dependencies
+          uv sync --python 3.12
+
+          # Show what was installed
+          echo "Installed icechunk packages:"
+          uv pip list | grep -i icechunk
 
       - name: Verify both versions are installed and isolated
         run: |
-          test-venv/bin/python -c "
+          cd test-project
+          uv run python -c "
           import sys
 
           # Import both versions
