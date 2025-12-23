@@ -1,0 +1,150 @@
+"""Tests for wheel renaming functionality."""
+
+from __future__ import annotations
+
+import zipfile
+from pathlib import Path
+
+import pytest
+
+from wheel_rename.rename import (
+    _build_wheel_filename,
+    _compute_record_hash,
+    _normalize_name,
+    _parse_wheel_filename,
+    rename_wheel,
+)
+
+
+class TestNormalizeName:
+    def test_lowercase(self) -> None:
+        assert _normalize_name("MyPackage") == "mypackage"
+
+    def test_hyphens_to_underscores(self) -> None:
+        assert _normalize_name("my-package") == "my_package"
+
+    def test_dots_to_underscores(self) -> None:
+        assert _normalize_name("my.package") == "my_package"
+
+    def test_multiple_separators(self) -> None:
+        assert _normalize_name("My--Package..Name") == "my_package_name"
+
+
+class TestParseWheelFilename:
+    def test_basic_wheel(self) -> None:
+        result = _parse_wheel_filename("mypackage-1.0.0-py3-none-any.whl")
+        assert result["distribution"] == "mypackage"
+        assert result["version"] == "1.0.0"
+        assert result["python"] == "py3"
+        assert result["abi"] == "none"
+        assert result["platform"] == "any"
+
+    def test_wheel_with_build_tag(self) -> None:
+        result = _parse_wheel_filename("mypackage-1.0.0-1-py3-none-any.whl")
+        assert result["distribution"] == "mypackage"
+        assert result["version"] == "1.0.0"
+        assert result["build"] == "1"
+        assert result["python"] == "py3"
+
+    def test_platform_wheel(self) -> None:
+        result = _parse_wheel_filename(
+            "numpy-1.24.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        )
+        assert result["distribution"] == "numpy"
+        assert result["version"] == "1.24.0"
+        assert result["python"] == "cp311"
+        assert result["abi"] == "cp311"
+
+
+class TestBuildWheelFilename:
+    def test_basic(self) -> None:
+        components = {
+            "distribution": "mypackage",
+            "version": "1.0.0",
+            "build": "",
+            "python": "py3",
+            "abi": "none",
+            "platform": "any",
+        }
+        assert _build_wheel_filename(components) == "mypackage-1.0.0-py3-none-any.whl"
+
+    def test_with_build_tag(self) -> None:
+        components = {
+            "distribution": "mypackage",
+            "version": "1.0.0",
+            "build": "1",
+            "python": "py3",
+            "abi": "none",
+            "platform": "any",
+        }
+        assert _build_wheel_filename(components) == "mypackage-1.0.0-1-py3-none-any.whl"
+
+
+class TestComputeRecordHash:
+    def test_known_hash(self) -> None:
+        # Test with known input
+        data = b"hello world"
+        result = _compute_record_hash(data)
+        assert result.startswith("sha256=")
+        # SHA256 of "hello world" is known
+        assert result == "sha256=uU0nuZNNPgilLlLX2n2r-sSE7-N6U4DukIj3rOLvzek"
+
+
+class TestRenameWheel:
+    def test_rename_pure_python_wheel(self, tmp_path: Path) -> None:
+        """Test renaming a simple pure Python wheel."""
+        # Create a minimal wheel
+        wheel_name = "testpkg-0.1.0-py3-none-any.whl"
+        wheel_path = tmp_path / wheel_name
+
+        # Create wheel contents
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            # Package directory
+            zf.writestr("testpkg/__init__.py", 'VERSION = "0.1.0"\n')
+
+            # Dist-info
+            zf.writestr(
+                "testpkg-0.1.0.dist-info/METADATA",
+                "Metadata-Version: 2.1\nName: testpkg\nVersion: 0.1.0\n",
+            )
+            zf.writestr(
+                "testpkg-0.1.0.dist-info/WHEEL",
+                "Wheel-Version: 1.0\nGenerator: test\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+            )
+            zf.writestr("testpkg-0.1.0.dist-info/RECORD", "")
+
+        # Rename the wheel
+        output_dir = tmp_path / "output"
+        result = rename_wheel(wheel_path, "testpkg_v1", output_dir=output_dir)
+
+        # Check the result
+        assert result.exists()
+        assert result.name == "testpkg_v1-0.1.0-py3-none-any.whl"
+
+        # Verify contents
+        with zipfile.ZipFile(result, "r") as zf:
+            names = zf.namelist()
+            assert "testpkg_v1/__init__.py" in names
+            assert "testpkg_v1-0.1.0.dist-info/METADATA" in names
+            assert "testpkg_v1-0.1.0.dist-info/RECORD" in names
+
+            # Check METADATA was updated
+            metadata = zf.read("testpkg_v1-0.1.0.dist-info/METADATA").decode()
+            assert "Name: testpkg_v1" in metadata
+
+    def test_rename_wheel_not_found(self, tmp_path: Path) -> None:
+        """Test error when wheel doesn't exist."""
+        with pytest.raises(FileNotFoundError):
+            rename_wheel(tmp_path / "nonexistent.whl", "newname")
+
+    def test_rename_same_name_error(self, tmp_path: Path) -> None:
+        """Test error when new name is the same as old name."""
+        wheel_path = tmp_path / "testpkg-0.1.0-py3-none-any.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("testpkg/__init__.py", "")
+            zf.writestr("testpkg-0.1.0.dist-info/METADATA", "Name: testpkg\n")
+            zf.writestr("testpkg-0.1.0.dist-info/WHEEL", "")
+            zf.writestr("testpkg-0.1.0.dist-info/RECORD", "")
+
+        with pytest.raises(ValueError, match="same as old name"):
+            rename_wheel(wheel_path, "testpkg")
