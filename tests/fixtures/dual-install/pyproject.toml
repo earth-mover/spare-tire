@@ -2,7 +2,7 @@
 name = "dual-icechunk-test"
 version = "0.1.0"
 description = "Test fixture for dual icechunk version installation"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "icechunk>=2.0.0.dev0",  # v2 from nightly
     "icechunk_v1",            # v1 renamed, from our proxy
@@ -14,5 +14,9 @@ extra-index-url = [
     "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple",
     "http://127.0.0.1:8123/simple/",
 ]
-# Allow pre-release versions for icechunk
+# Allow pre-release versions
 prerelease = "allow"
+# Consider all versions from all indexes (needed for nightly builds)
+index-strategy = "unsafe-best-match"
+# Use highest available versions
+resolution = "highest"

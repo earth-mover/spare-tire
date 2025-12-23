@@ -46,10 +46,14 @@ environment.
 The `pyproject.toml` configures:
 
 - **Dependencies**: Both `icechunk>=2.0.0.dev0` and `icechunk_v1`
+- **requires-python**: `>=3.12` (required by nightly numpy)
 - **Extra indexes**:
-  - Anaconda nightly wheels (for latest icechunk v2)
+  - Anaconda nightly wheels (for latest icechunk v2 and deps)
   - Local proxy at `http://127.0.0.1:8123` (serves renamed icechunk_v1)
-- **Prerelease**: Enabled to allow dev versions
+- **prerelease**: `allow` - enables dev/alpha versions
+- **index-strategy**: `unsafe-best-match` - considers all versions from all indexes
+  (required when mixing nightly wheels with PyPI)
+- **resolution**: `highest` - prefers newest available versions
 
 ## Running Locally
 
