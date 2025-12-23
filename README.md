@@ -32,6 +32,7 @@ Here's a complete example of setting up both icechunk versions for regression te
 # 1. Download v1 wheel from nightly builds (no pip required!)
 uvx wheel-rename download icechunk \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
+    --version "<2" \
     -o ./wheels/
 
 # 2. Inspect the wheel to verify it's renamable
