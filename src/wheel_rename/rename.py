@@ -220,6 +220,120 @@ def rename_wheel(
     return output_path
 
 
+def rename_wheel_from_bytes(
+    wheel_bytes: bytes,
+    new_name: str,
+    *,
+    update_imports: bool = True,
+) -> bytes:
+    """Rename a wheel from bytes (for in-memory processing).
+
+    Args:
+        wheel_bytes: Original wheel file contents as bytes
+        new_name: New package name (e.g., "icechunk_v1")
+        update_imports: Whether to update import statements in Python files
+
+    Returns:
+        Renamed wheel file contents as bytes
+    """
+    from io import BytesIO
+
+    # Read the wheel from bytes
+    input_buffer = BytesIO(wheel_bytes)
+
+    with zipfile.ZipFile(input_buffer, "r") as zf:
+        # Find the distribution name from the wheel
+        dist_info_dirs = [n for n in zf.namelist() if ".dist-info/" in n]
+        if not dist_info_dirs:
+            msg = "Cannot find .dist-info directory in wheel"
+            raise ValueError(msg)
+
+        # Extract version from dist-info directory name
+        dist_info_name = dist_info_dirs[0].split("/")[0]  # e.g., "icechunk-1.0.0.dist-info"
+        old_name_normalized, version = (
+            dist_info_name.rsplit("-", 1)[0],
+            dist_info_name.rsplit("-", 1)[1].replace(".dist-info", ""),
+        )
+
+        # Re-extract version properly
+        parts = dist_info_name.replace(".dist-info", "").rsplit("-", 1)
+        old_name_normalized = parts[0]
+        version = parts[1] if len(parts) > 1 else "0.0.0"
+
+        new_name_normalized = _normalize_name(new_name)
+
+        if old_name_normalized == new_name_normalized:
+            return wheel_bytes  # No rename needed
+
+        # Old and new dist-info directory names
+        old_dist_info = f"{old_name_normalized}-{version}.dist-info"
+        new_dist_info = f"{new_name_normalized}-{version}.dist-info"
+
+        # Old and new data directory names (if present)
+        old_data_dir = f"{old_name_normalized}-{version}.data"
+        new_data_dir = f"{new_name_normalized}-{version}.data"
+
+        # Process files
+        files: dict[str, bytes] = {}
+
+        for name in zf.namelist():
+            content = zf.read(name)
+            new_file_name = name
+
+            # Rename the package directory
+            if name.startswith(f"{old_name_normalized}/") or name == old_name_normalized:
+                new_file_name = new_name_normalized + name[len(old_name_normalized) :]
+
+            # Rename the dist-info directory
+            elif name.startswith(f"{old_dist_info}/") or name == old_dist_info:
+                new_file_name = new_dist_info + name[len(old_dist_info) :]
+
+            # Rename the data directory (if present)
+            elif name.startswith(f"{old_data_dir}/") or name == old_data_dir:
+                new_file_name = new_data_dir + name[len(old_data_dir) :]
+
+            # Update file contents as needed
+            new_content = content
+
+            # Update METADATA file
+            if new_file_name == f"{new_dist_info}/METADATA":
+                new_content = _update_metadata(content, old_name_normalized, new_name)
+
+            # Update Python files (imports)
+            elif update_imports and new_file_name.endswith(".py"):
+                new_content = _update_python_imports(
+                    content, old_name_normalized, new_name_normalized
+                )
+
+            # Skip the old RECORD file (we'll generate a new one)
+            if name.endswith("/RECORD"):
+                continue
+
+            files[new_file_name] = new_content
+
+    # Generate new RECORD file
+    record_path = f"{new_dist_info}/RECORD"
+    record_lines: list[str] = []
+
+    for file_name, content in sorted(files.items()):
+        file_hash = _compute_record_hash(content)
+        file_size = len(content)
+        record_lines.append(f"{file_name},{file_hash},{file_size}")
+
+    # RECORD itself has no hash
+    record_lines.append(f"{record_path},,")
+    record_content = "\n".join(record_lines).encode("utf-8")
+    files[record_path] = record_content
+
+    # Write the new wheel to bytes
+    output_buffer = BytesIO()
+    with zipfile.ZipFile(output_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_name, content in sorted(files.items()):
+            zf.writestr(file_name, content)
+
+    return output_buffer.getvalue()
+
+
 def inspect_wheel(wheel_path: Path) -> dict[str, object]:
     """Inspect a wheel and return information about its structure.
 

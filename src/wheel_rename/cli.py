@@ -250,5 +250,133 @@ def download(
         sys.exit(1)
 
 
+@main.command()
+@click.option(
+    "-c",
+    "--config",
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to TOML config file",
+)
+@click.option(
+    "-u",
+    "--upstream",
+    multiple=True,
+    help="Upstream index URL (can be specified multiple times)",
+)
+@click.option(
+    "-r",
+    "--rename",
+    "renames",
+    multiple=True,
+    help="Rename rule: 'original=new_name[:version_spec]' (can be specified multiple times)",
+)
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    help="Host to bind to (default: 127.0.0.1)",
+)
+@click.option(
+    "--port",
+    default=8000,
+    type=int,
+    help="Port to listen on (default: 8000)",
+)
+def serve(
+    config: Path | None,
+    upstream: tuple[str, ...],
+    renames: tuple[str, ...],
+    host: str,
+    port: int,
+) -> None:
+    """Start a PEP 503 proxy server with package renaming.
+
+    The proxy server acts as a package index that can rename packages on-the-fly.
+    This allows installing renamed packages via pip/uv.
+
+    \b
+    Examples:
+        # Start with CLI options
+        wheel-rename serve \\
+            -u https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \\
+            -r "icechunk=icechunk_v1:<2"
+
+        # Start with config file
+        wheel-rename serve -c proxy.toml
+
+    \b
+    Config file format (proxy.toml):
+        [proxy]
+        host = "127.0.0.1"
+        port = 8000
+
+        [[proxy.upstreams]]
+        url = "https://pypi.org/simple/"
+
+        [renames]
+        icechunk = { name = "icechunk_v1", version = "<2" }
+    """
+    try:
+        import uvicorn
+
+        from wheel_rename.server import create_app, load_config
+    except ImportError as e:
+        err_console.print(
+            "[red]✗ Error:[/red] Server dependencies not installed.\n"
+            "Install with: [bold]pip install wheel-rename[server][/bold]"
+        )
+        err_console.print(f"[dim]Missing: {e}[/dim]")
+        sys.exit(1)
+
+    try:
+        # Load configuration
+        cfg = load_config(
+            config_path=config,
+            upstreams=upstream if upstream else None,
+            renames=renames if renames else None,
+            host=host,
+            port=port,
+        )
+
+        if not cfg.upstreams:
+            err_console.print(
+                "[red]✗ Error:[/red] No upstream indexes configured.\n"
+                "Use [bold]-u/--upstream[/bold] or config file."
+            )
+            sys.exit(1)
+
+        if not cfg.renames:
+            console.print(
+                "[yellow]⚠ Warning:[/yellow] No rename rules configured.\n"
+                "The proxy will only serve virtual packages from rename rules."
+            )
+
+        # Print startup info
+        console.print(
+            Panel.fit(
+                f"[bold]wheel-rename proxy[/bold]\n"
+                f"Listening on: [cyan]http://{cfg.host}:{cfg.port}[/cyan]\n"
+                f"Upstreams: {len(cfg.upstreams)}\n"
+                f"Renames: {len(cfg.renames)}",
+                border_style="blue",
+            )
+        )
+
+        for rule in cfg.renames:
+            version_info = f" ({rule.version_spec})" if rule.version_spec else ""
+            console.print(
+                f"  [dim]•[/dim] {rule.original} → [bold]{rule.new_name}[/bold]{version_info}"
+            )
+
+        console.print()
+
+        # Create and run the app
+        app = create_app(cfg)
+        uvicorn.run(app, host=cfg.host, port=cfg.port, log_level="info")
+
+    except Exception as e:
+        err_console.print(f"[red]✗ Error:[/red] {e}")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()

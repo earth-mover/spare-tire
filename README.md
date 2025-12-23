@@ -73,7 +73,8 @@ wheel-rename icechunk-1.0.0-cp312-cp312-linux_x86_64.whl icechunk_v1
 wheel-rename ./downloads/pkg.whl my_pkg_old -o ./renamed/
 ```
 
-Options:
+**Options:**
+
 - `-o, --output`: Output directory (default: same as input)
 - `--no-update-imports`: Don't update import statements in Python files
 
@@ -91,7 +92,8 @@ wheel-rename download requests --version ">=2.0,<3"
 wheel-rename download icechunk --version "<2" -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
 ```
 
-Options:
+**Options:**
+
 - `-o, --output`: Output directory (default: current directory)
 - `-i, --index-url`: Package index URL (default: PyPI)
 - `--version`: PEP 440 version specifier (e.g., `==1.0.0`, `<2`, `>=1.0,<2`)
@@ -115,6 +117,64 @@ wheel-rename inspect <wheel_path> [--json]
 # This wheel uses underscore-prefix extensions.
 # Renaming should work correctly.
 ```
+
+### serve
+
+Start a PEP 503 proxy server that renames packages on-the-fly:
+
+```bash
+# Install with server extras
+pip install wheel-rename[server]
+
+# Start proxy with CLI options
+wheel-rename serve \
+    -u https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
+    -r "icechunk=icechunk_v1:<2" \
+    --port 8000
+
+# Or use a config file
+wheel-rename serve -c proxy.toml
+```
+
+**Options:**
+
+- `-c, --config`: Path to TOML config file
+- `-u, --upstream`: Upstream index URL (can be specified multiple times)
+- `-r, --rename`: Rename rule in format `original=new_name[:version_spec]`
+- `--host`: Host to bind to (default: 127.0.0.1)
+- `--port`: Port to listen on (default: 8000)
+
+**Config file format (proxy.toml):**
+
+```toml
+[proxy]
+host = "127.0.0.1"
+port = 8000
+
+[[proxy.upstreams]]
+url = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/"
+
+[renames]
+icechunk = { name = "icechunk_v1", version = "<2" }
+```
+
+**Using with uv:**
+
+```bash
+# Start the proxy
+wheel-rename serve -u https://pypi.org/simple/ -r "requests=requests_old:<2"
+
+# In another terminal, install from the proxy
+uv pip install requests_old --index-url http://127.0.0.1:8000/simple/
+```
+
+The proxy:
+
+1. Lists virtual packages (renamed packages) at `/simple/`
+2. Fetches the original package from upstream when requested
+3. Filters by version constraint if specified
+4. Renames the wheel on-the-fly during download
+5. Serves the renamed wheel to the client
 
 ## How It Works
 

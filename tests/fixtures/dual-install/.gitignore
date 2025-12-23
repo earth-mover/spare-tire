@@ -1,0 +1,5 @@
+# Virtual environment created by uv sync
+.venv/
+
+# Lock file (regenerated on each run)
+uv.lock
