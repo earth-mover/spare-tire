@@ -264,6 +264,7 @@ def rename_wheel_from_bytes(
     new_name: str,
     *,
     update_imports: bool = True,
+    rename_deps: dict[str, str] | None = None,
 ) -> bytes:
     """Rename a wheel from bytes (for in-memory processing).
 
@@ -271,6 +272,8 @@ def rename_wheel_from_bytes(
         wheel_bytes: Original wheel file contents as bytes
         new_name: New package name (e.g., "icechunk_v1")
         update_imports: Whether to update import statements in Python files
+        rename_deps: Optional mapping of old dependency names to new names.
+                    This updates both Requires-Dist in METADATA and import statements.
 
     Returns:
         Renamed wheel file contents as bytes
@@ -336,13 +339,21 @@ def rename_wheel_from_bytes(
 
             # Update METADATA file
             if new_file_name == f"{new_dist_info}/METADATA":
-                new_content = _update_metadata(content, old_name_normalized, new_name)
+                new_content = _update_metadata(content, old_name_normalized, new_name, rename_deps)
 
             # Update Python files (imports)
             elif update_imports and new_file_name.endswith(".py"):
                 new_content = _update_python_imports(
                     content, old_name_normalized, new_name_normalized
                 )
+                # Also update imports for renamed dependencies
+                if rename_deps:
+                    for old_dep, new_dep in rename_deps.items():
+                        old_dep_normalized = _normalize_name(old_dep)
+                        new_dep_normalized = _normalize_name(new_dep)
+                        new_content = _update_python_imports(
+                            new_content, old_dep_normalized, new_dep_normalized
+                        )
 
             # Skip the old RECORD file (we'll generate a new one)
             if name.endswith("/RECORD"):

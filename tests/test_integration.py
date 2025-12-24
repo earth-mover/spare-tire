@@ -324,3 +324,118 @@ PACKAGE_NAME = "pkg"  # This should NOT be updated
         assert result.name == "pkg_v1-1.2.3.dev4+gabcdef-py3-none-any.whl"
         with zipfile.ZipFile(result) as zf:
             assert "pkg_v1-1.2.3.dev4+gabcdef.dist-info/METADATA" in zf.namelist()
+
+
+class TestDependencyRenaming:
+    """Test renaming dependencies along with the package."""
+
+    def test_rename_deps_updates_metadata(self, tmp_path: Path) -> None:
+        """Test that rename_deps updates Requires-Dist in METADATA."""
+        wheel_path = tmp_path / "pkg-0.1.0-py3-none-any.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("pkg/__init__.py", "import dep\n")
+            zf.writestr(
+                "pkg-0.1.0.dist-info/METADATA",
+                "Name: pkg\nVersion: 0.1.0\nRequires-Dist: dep<2\n",
+            )
+            zf.writestr("pkg-0.1.0.dist-info/WHEEL", "")
+            zf.writestr("pkg-0.1.0.dist-info/RECORD", "")
+
+        result = rename_wheel(
+            wheel_path,
+            "pkg_v1",
+            output_dir=tmp_path / "out",
+            rename_deps={"dep": "dep_v1"},
+        )
+
+        with zipfile.ZipFile(result) as zf:
+            metadata = zf.read("pkg_v1-0.1.0.dist-info/METADATA").decode()
+            assert "Name: pkg_v1" in metadata
+            assert "Requires-Dist: dep_v1<2" in metadata
+            assert "Requires-Dist: dep<2" not in metadata
+
+    def test_rename_deps_updates_imports(self, tmp_path: Path) -> None:
+        """Test that rename_deps updates import statements."""
+        wheel_path = tmp_path / "pkg-0.1.0-py3-none-any.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "pkg/__init__.py",
+                "import dep\nfrom dep import func\nresult = dep.call()\n",
+            )
+            zf.writestr(
+                "pkg-0.1.0.dist-info/METADATA",
+                "Name: pkg\nVersion: 0.1.0\nRequires-Dist: dep>=1\n",
+            )
+            zf.writestr("pkg-0.1.0.dist-info/WHEEL", "")
+            zf.writestr("pkg-0.1.0.dist-info/RECORD", "")
+
+        result = rename_wheel(
+            wheel_path,
+            "pkg_v1",
+            output_dir=tmp_path / "out",
+            rename_deps={"dep": "dep_v1"},
+        )
+
+        with zipfile.ZipFile(result) as zf:
+            content = zf.read("pkg_v1/__init__.py").decode()
+            # import statement updated
+            assert "import dep_v1" in content
+            assert "import dep\n" not in content
+            # from import updated
+            assert "from dep_v1 import func" in content
+            # module attribute access updated
+            assert "dep_v1.call()" in content
+
+    def test_rename_multiple_deps(self, tmp_path: Path) -> None:
+        """Test renaming multiple dependencies at once."""
+        wheel_path = tmp_path / "pkg-0.1.0-py3-none-any.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "pkg/__init__.py",
+                "import dep1\nimport dep2\n",
+            )
+            zf.writestr(
+                "pkg-0.1.0.dist-info/METADATA",
+                "Name: pkg\nVersion: 0.1.0\nRequires-Dist: dep1<2\nRequires-Dist: dep2>=3\n",
+            )
+            zf.writestr("pkg-0.1.0.dist-info/WHEEL", "")
+            zf.writestr("pkg-0.1.0.dist-info/RECORD", "")
+
+        result = rename_wheel(
+            wheel_path,
+            "pkg_v1",
+            output_dir=tmp_path / "out",
+            rename_deps={"dep1": "dep1_old", "dep2": "dep2_old"},
+        )
+
+        with zipfile.ZipFile(result) as zf:
+            metadata = zf.read("pkg_v1-0.1.0.dist-info/METADATA").decode()
+            assert "Requires-Dist: dep1_old<2" in metadata
+            assert "Requires-Dist: dep2_old>=3" in metadata
+
+            content = zf.read("pkg_v1/__init__.py").decode()
+            assert "import dep1_old" in content
+            assert "import dep2_old" in content
+
+    def test_rename_deps_with_extras(self, tmp_path: Path) -> None:
+        """Test renaming dependencies that have extras."""
+        wheel_path = tmp_path / "pkg-0.1.0-py3-none-any.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("pkg/__init__.py", "")
+            zf.writestr(
+                "pkg-0.1.0.dist-info/METADATA",
+                "Name: pkg\nVersion: 0.1.0\nRequires-Dist: dep[extra1,extra2]>=1\n",
+            )
+            zf.writestr("pkg-0.1.0.dist-info/WHEEL", "")
+            zf.writestr("pkg-0.1.0.dist-info/RECORD", "")
+
+        result = rename_wheel(
+            wheel_path,
+            "pkg_v1",
+            output_dir=tmp_path / "out",
+            rename_deps={"dep": "dep_v1"},
+        )
+
+        with zipfile.ZipFile(result) as zf:
+            metadata = zf.read("pkg_v1-0.1.0.dist-info/METADATA").decode()
+            assert "Requires-Dist: dep_v1[extra1,extra2]>=1" in metadata
