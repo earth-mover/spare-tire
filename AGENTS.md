@@ -277,7 +277,10 @@ uv run spare-tire inspect ./icechunk-*.whl
 # Rename a wheel
 uv run spare-tire rename ./icechunk-*.whl icechunk_v1 -o ./renamed/
 
-# Download and rename in one step (manual)
-uv run spare-tire download icechunk -i ... --version "<2" -o ./wheels/
-uv run spare-tire rename ./wheels/icechunk-*.whl icechunk_v1 -o ./wheels/
+# Download and rename in one step
+uv run spare-tire download icechunk \
+    -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
+    --version "<2" \
+    --rename icechunk_v1 \
+    -o ./wheels/
 ```

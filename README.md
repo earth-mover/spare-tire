@@ -1,4 +1,4 @@
-# spare-tire
+# 🛞 spare-tire
 
 A tool to rename Python wheel packages for multi-version installation.
 
@@ -29,37 +29,40 @@ pip install spare-tire
 Here's a complete example of setting up both icechunk versions for regression testing:
 
 ```bash
-# 1. Download v1 wheel from nightly builds (no pip required!)
+# 1. Download and rename v1 in one command (specify target Python version for uvx)
 uvx spare-tire download icechunk \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --version "<2" \
+    --rename icechunk_v1 \
+    --python-version 3.12 \
     -o ./wheels/
 
-# 2. Inspect the wheel to verify it's renamable
-uvx spare-tire inspect ./wheels/icechunk-*.whl
-
-# 3. Rename icechunk -> icechunk_v1
-uvx spare-tire rename ./wheels/icechunk-*.whl icechunk_v1 -o ./wheels/
-
-# 4. Download v2 wheel from nightly builds
+# 2. Download v2 wheel from nightly builds
 uvx spare-tire download icechunk \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --version ">=2.0.0.dev0" \
+    --python-version 3.12 \
     -o ./wheels/
 
-# 5. Create a venv and install both versions
+# 3. Create a venv and install both versions
 uv venv
 uv pip install ./wheels/icechunk_v1-*.whl  # v1 as icechunk_v1
 uv pip install ./wheels/icechunk-2*.whl    # v2 as icechunk
 
-# 6. Verify both work
+# 4. Verify both work
 uv run python -c "import icechunk_v1; print(f'v1: {icechunk_v1.__version__}')"
 uv run python -c "import icechunk; print(f'v2: {icechunk.__version__}')"
 ```
 
+**Optional: Inspect a wheel before renaming** to verify it uses underscore-prefix extensions:
+
+```bash
+uvx spare-tire inspect ./wheels/icechunk-*.whl
+```
+
 ## Commands
 
-### rename
+### 🛞 rename
 
 Rename a wheel package:
 
@@ -76,18 +79,22 @@ spare-tire rename ./downloads/pkg.whl my_pkg_old -o ./renamed/
 - `-o, --output`: Output directory (default: same as input)
 - `--no-update-imports`: Don't update import statements in Python files
 
-### download
+### 🛞 download
 
 Download a compatible wheel from a package index:
 
 ```bash
-spare-tire download <package> [-o <output_dir>] [-i <index_url>] [--version <spec>]
+spare-tire download <package> [-o <output_dir>] [-i <index_url>] [--version <spec>] [--rename <new_name>]
 
 # Examples:
 spare-tire download numpy -o ./wheels/
 spare-tire download icechunk -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
 spare-tire download requests --version ">=2.0,<3"
 spare-tire download icechunk --version "<2" -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
+
+# Download and rename in one command:
+spare-tire download icechunk --version "<2" --rename icechunk_v1 -o ./wheels/ \
+    -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
 ```
 
 **Options:**
@@ -96,8 +103,10 @@ spare-tire download icechunk --version "<2" -i https://pypi.anaconda.org/scienti
 - `-i, --index-url`: Package index URL (default: PyPI)
 - `--version`: PEP 440 version specifier (e.g., `==1.0.0`, `<2`, `>=1.0,<2`)
 - `--list`: List available wheels without downloading
+- `--rename`: Rename the downloaded wheel to this package name (combines download + rename)
+- `--python-version`: Target Python version (e.g., `3.12`). Useful with `uvx` to download wheels for a different Python than the one running spare-tire.
 
-### inspect
+### 🔧 inspect
 
 Inspect a wheel's structure before renaming:
 
@@ -116,7 +125,7 @@ spare-tire inspect <wheel_path> [--json]
 # Renaming should work correctly.
 ```
 
-### serve
+### 🛞 serve
 
 Start a PEP 503 proxy server that renames packages on-the-fly:
 
@@ -174,7 +183,7 @@ The proxy:
 4. Renames the wheel on-the-fly during download
 5. Serves the renamed wheel to the client
 
-## How It Works
+## 🔧 How It Works
 
 1. **Extracts** the wheel (which is a ZIP file)
 2. **Renames** the package directory (`pkg/` → `pkg_v1/`)
@@ -184,7 +193,7 @@ The proxy:
 6. **Regenerates RECORD** with new file paths and SHA256 hashes
 7. **Repacks** as a new wheel with the renamed filename
 
-## Compiled Extensions
+## 🔧 Compiled Extensions
 
 For wheels with compiled extensions (`.so`/`.pyd` files), renaming works **only if** the extension uses an underscore-prefix naming pattern:
 

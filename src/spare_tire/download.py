@@ -12,7 +12,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from packaging.specifiers import SpecifierSet
-from packaging.tags import Tag, sys_tags
+from packaging.tags import Tag, compatible_tags, cpython_tags, sys_tags
 from packaging.version import Version
 from pypi_simple import PyPISimple
 
@@ -22,9 +22,29 @@ if TYPE_CHECKING:
     from pypi_simple import DistributionPackage
 
 
-def get_compatible_tags() -> list[Tag]:
-    """Get ordered list of compatible tags for current platform."""
-    return list(sys_tags())
+def get_compatible_tags(python_version: str | None = None) -> list[Tag]:
+    """Get ordered list of compatible tags for current platform.
+
+    Args:
+        python_version: Optional Python version string (e.g., "3.12", "3.11").
+                       If None, uses the current interpreter's version.
+    """
+    if python_version is None:
+        return list(sys_tags())
+
+    # Parse version string like "3.12" -> (3, 12)
+    parts = python_version.split(".")
+    if len(parts) < 2:
+        raise ValueError(f"Invalid Python version: {python_version}. Expected format: 3.12")
+    major, minor = int(parts[0]), int(parts[1])
+    py_version = (major, minor)
+
+    # Generate CPython tags for the specified version
+    # We need to combine cpython_tags (for cp312-cp312-*) and compatible_tags (for py3-none-*)
+    tags: list[Tag] = []
+    tags.extend(cpython_tags(python_version=py_version))
+    tags.extend(compatible_tags(python_version=py_version))
+    return tags
 
 
 def parse_wheel_tags(filename: str) -> list[Tag]:
@@ -100,6 +120,7 @@ def download_compatible_wheel(
     output_dir: Path,
     index_url: str = "https://pypi.org/simple/",
     version: str | None = None,
+    python_version: str | None = None,
     show_progress: bool = True,
 ) -> Path | None:
     """Download the best compatible wheel for the current platform.
@@ -109,6 +130,7 @@ def download_compatible_wheel(
         output_dir: Directory to save the file
         index_url: Base URL of the simple repository index
         version: Optional version constraint (e.g., "1.0.0", "<2", ">=1.0,<2")
+        python_version: Optional Python version (e.g., "3.12"). If None, uses current interpreter.
         show_progress: Whether to show download progress
 
     Returns:
@@ -137,7 +159,7 @@ def download_compatible_wheel(
                 print(f"No wheels found for {package} matching {version}", file=sys.stderr)
                 return None
 
-        compatible_tags = get_compatible_tags()
+        compatible_tags = get_compatible_tags(python_version)
         wheel = best_wheel(wheels, compatible_tags)
 
         if wheel is None:
