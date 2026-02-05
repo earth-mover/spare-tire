@@ -12,6 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from spare_tire.download import download_compatible_wheel, list_wheels
+from spare_tire.patch import patch_wheel
 from spare_tire.rename import inspect_wheel, rename_wheel
 
 console = Console()
@@ -61,6 +62,60 @@ def rename(
             )
 
         console.print(f"[green]🛞 Created:[/green] [bold]{result}[/bold]")
+
+    except Exception as e:
+        err_console.print(f"[red]🔧 Error:[/red] {e}")
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("wheel_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("old_dep")
+@click.argument("new_dep")
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path),
+    help="Output directory for the patched wheel (default: same as input)",
+)
+def patch(
+    wheel_path: Path,
+    old_dep: str,
+    new_dep: str,
+    output: Path | None,
+) -> None:
+    """🛞 Patch dependency references in a wheel.
+
+    Rewrites all references to OLD_DEP → NEW_DEP inside the wheel's Python files
+    without renaming the package itself. Useful after renaming a dependency with
+    spare-tire rename.
+
+    \b
+    WHEEL_PATH: Path to the wheel file to patch
+    OLD_DEP: Dependency name to replace (e.g., "zarr")
+    NEW_DEP: Replacement dependency name (e.g., "zarr_v2")
+
+    \b
+    Example:
+        spare-tire patch anemoi_datasets-0.5.31-py3-none-any.whl zarr zarr_v2 -o ./wheels/
+    """
+    try:
+        with console.status(f"[bold blue]Patching {wheel_path.name}..."):
+            result_path, patched_files = patch_wheel(
+                wheel_path,
+                old_dep,
+                new_dep,
+                output_dir=output,
+            )
+
+        if patched_files:
+            console.print(f"[green]🛞 Patched {len(patched_files)} files:[/green]")
+            for f in patched_files:
+                console.print(f"  [dim]•[/dim] {f}")
+        else:
+            console.print("[yellow]🔧 No files needed patching[/yellow]")
+
+        console.print(f"[green]🛞 Output:[/green] [bold]{result_path}[/bold]")
 
     except Exception as e:
         err_console.print(f"[red]🔧 Error:[/red] {e}")
@@ -289,12 +344,12 @@ def download(
 )
 @click.option(
     "--host",
-    default="127.0.0.1",
+    default=None,
     help="Host to bind to (default: 127.0.0.1)",
 )
 @click.option(
     "--port",
-    default=8000,
+    default=None,
     type=int,
     help="Port to listen on (default: 8000)",
 )
@@ -302,8 +357,8 @@ def serve(
     config: Path | None,
     upstream: tuple[str, ...],
     renames: tuple[str, ...],
-    host: str,
-    port: int,
+    host: str | None,
+    port: int | None,
 ) -> None:
     """🛞 Start a PEP 503 proxy server with package renaming.
 
@@ -361,10 +416,10 @@ def serve(
             )
             sys.exit(1)
 
-        if not cfg.renames:
+        if not cfg.renames and not cfg.patches:
             console.print(
-                "[yellow]🔧 Warning:[/yellow] No rename rules configured.\n"
-                "The proxy will only serve virtual packages from rename rules."
+                "[yellow]🔧 Warning:[/yellow] No rename or patch rules configured.\n"
+                "The proxy will only serve virtual packages from rename/patch rules."
             )
 
         # Print startup info
@@ -373,7 +428,8 @@ def serve(
                 f"[bold]🛞 spare-tire proxy[/bold]\n"
                 f"Listening on: [cyan]http://{cfg.host}:{cfg.port}[/cyan]\n"
                 f"Upstreams: {len(cfg.upstreams)}\n"
-                f"Renames: {len(cfg.renames)}",
+                f"Renames: {len(cfg.renames)}\n"
+                f"Patches: {len(cfg.patches)}",
                 border_style="blue",
             )
         )
@@ -382,6 +438,11 @@ def serve(
             version_info = f" ({rule.version_spec})" if rule.version_spec else ""
             console.print(
                 f"  [dim]•[/dim] {rule.original} → [bold]{rule.new_name}[/bold]{version_info}"
+            )
+
+        for rule in cfg.patches:
+            console.print(
+                f"  [dim]•[/dim] {rule.package}: {rule.old_dep} → [bold]{rule.new_dep}[/bold]"
             )
 
         console.print()

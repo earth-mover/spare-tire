@@ -10,7 +10,11 @@ from fastapi.responses import RedirectResponse
 
 from spare_tire.server.config import ProxyConfig  # noqa: TC001 - used at runtime
 from spare_tire.server.html import generate_project_index, generate_root_index
-from spare_tire.server.stream import original_filename_from_renamed, stream_and_rename_wheel
+from spare_tire.server.stream import (
+    original_filename_from_renamed,
+    stream_and_patch_wheel,
+    stream_and_rename_wheel,
+)
 from spare_tire.server.upstream import UpstreamClient
 
 if TYPE_CHECKING:
@@ -62,12 +66,10 @@ def create_app(config: ProxyConfig) -> FastAPI:
         - All projects from upstream indexes
         - Virtual packages from rename rules (e.g., icechunk_v1)
         """
-        # Start with virtual packages from rename rules
+        # Virtual packages from rename rules + patched packages
         projects = set(config.get_virtual_packages())
-
-        # For a full proxy, we'd also fetch all projects from upstream
-        # But that's expensive, so we only list our virtual packages
-        # Real packages are fetched on-demand when their project page is requested
+        for rule in config.patches:
+            projects.add(rule.package)
 
         html = generate_root_index(sorted(projects))
         return Response(content=html, media_type="text/html")
@@ -88,6 +90,7 @@ def create_app(config: ProxyConfig) -> FastAPI:
 
         # Check if this is a renamed virtual package
         rename_rule = config.get_rename_rule(project)
+        patch_rule = config.get_patch_rule(project)
 
         if rename_rule:
             # Fetch the original package
@@ -100,6 +103,18 @@ def create_app(config: ProxyConfig) -> FastAPI:
                 )
 
             html = generate_project_index(project, packages, rename_rule)
+        elif patch_rule:
+            # Fetch the package from upstream — we'll patch it on download
+            packages = await client.get_project_page(project)
+
+            if not packages:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No packages found for {project}",
+                )
+
+            # Strip hashes — content will change after patching
+            html = generate_project_index(project, packages, strip_hashes=True)
         else:
             # Passthrough - fetch from upstream as-is
             packages = await client.get_project_page(project)
@@ -131,6 +146,7 @@ def create_app(config: ProxyConfig) -> FastAPI:
 
         # Check if this is a renamed virtual package
         rename_rule = config.get_rename_rule(project)
+        patch_rule = config.get_patch_rule(project)
 
         if rename_rule:
             # Map the renamed filename back to original
@@ -157,6 +173,29 @@ def create_app(config: ProxyConfig) -> FastAPI:
 
             return Response(
                 content=renamed_bytes,
+                media_type="application/octet-stream",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                },
+            )
+        elif patch_rule:
+            # Fetch packages to find the URL
+            packages = await client.get_project_page(project)
+            upstream_url = client.find_package_url(packages, filename)
+
+            if not upstream_url:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Package not found: {filename}",
+                )
+
+            # Download and patch
+            patched_bytes = await stream_and_patch_wheel(
+                client, upstream_url, patch_rule.old_dep, patch_rule.new_dep
+            )
+
+            return Response(
+                content=patched_bytes,
                 media_type="application/octet-stream",
                 headers={
                     "Content-Disposition": f'attachment; filename="{filename}"',
