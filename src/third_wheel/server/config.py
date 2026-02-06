@@ -32,6 +32,23 @@ class RenameRule:
 
 
 @dataclass
+class PatchRule:
+    """A rule for patching dependency references in a package."""
+
+    package: str
+    """Package to patch (e.g., 'anemoi-datasets')."""
+
+    old_dep: str
+    """Dependency name to replace (e.g., 'zarr')."""
+
+    new_dep: str
+    """Replacement dependency name (e.g., 'zarr_v2')."""
+
+    version_spec: str | None = None
+    """Optional PEP 440 version specifier for the package to patch (e.g., '==0.5.31')."""
+
+
+@dataclass
 class ProxyConfig:
     """Configuration for the proxy server."""
 
@@ -46,6 +63,17 @@ class ProxyConfig:
 
     renames: list[RenameRule] = field(default_factory=list)
     """Package rename rules."""
+
+    patches: list[PatchRule] = field(default_factory=list)
+    """Package patch rules."""
+
+    def get_patch_rule(self, package: str) -> PatchRule | None:
+        """Get the patch rule for a package name."""
+        normalized = _normalize_name(package)
+        for rule in self.patches:
+            if _normalize_name(rule.package) == normalized:
+                return rule
+        return None
 
     def get_rename_rule(self, new_name: str) -> RenameRule | None:
         """Get the rename rule for a virtual package name.
@@ -152,6 +180,19 @@ def load_config(
             else:
                 # Simple format: original = "new_name"
                 config.renames.append(RenameRule(original=original, new_name=rename_config))
+
+        # Load patches
+        patches_section = data.get("patches", {})
+        for package, patch_config in patches_section.items():
+            if isinstance(patch_config, dict):
+                config.patches.append(
+                    PatchRule(
+                        package=package,
+                        old_dep=patch_config["old_dep"],
+                        new_dep=patch_config["new_dep"],
+                        version_spec=patch_config.get("version"),
+                    )
+                )
 
     # Apply CLI overrides
     if upstreams:

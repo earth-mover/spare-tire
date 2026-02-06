@@ -11,12 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from spare_tire.rename import rename_wheel
 from tests.conftest import (
     create_test_wheel,
     install_wheel_in_venv,
     run_in_venv,
 )
+from third_wheel.rename import rename_wheel
 
 
 class TestDualInstallIsolation:

@@ -1,4 +1,4 @@
-# 🛞 spare-tire
+# 🛞 third-wheel
 
 A tool to rename Python wheel packages for multi-version installation.
 
@@ -18,10 +18,10 @@ import icechunk     # The v2 version
 
 ```bash
 # Use directly with uvx (recommended)
-uvx spare-tire --help
+uvx third-wheel --help
 
 # Or install globally
-pip install spare-tire
+pip install third-wheel
 ```
 
 ## End-to-End Example: icechunk v1 + v2
@@ -30,7 +30,7 @@ Here's a complete example of setting up both icechunk versions for regression te
 
 ```bash
 # 1. Download and rename v1 in one command (specify target Python version for uvx)
-uvx spare-tire download icechunk \
+uvx third-wheel download icechunk \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --version "<2" \
     --rename icechunk_v1 \
@@ -38,7 +38,7 @@ uvx spare-tire download icechunk \
     -o ./wheels/
 
 # 2. Download v2 wheel from nightly builds
-uvx spare-tire download icechunk \
+uvx third-wheel download icechunk \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --version ">=2.0.0.dev0" \
     --python-version 3.12 \
@@ -57,7 +57,7 @@ uv run python -c "import icechunk; print(f'v2: {icechunk.__version__}')"
 **Optional: Inspect a wheel before renaming** to verify it uses underscore-prefix extensions:
 
 ```bash
-uvx spare-tire inspect ./wheels/icechunk-*.whl
+uvx third-wheel inspect ./wheels/icechunk-*.whl
 ```
 
 ## Commands
@@ -67,11 +67,11 @@ uvx spare-tire inspect ./wheels/icechunk-*.whl
 Rename a wheel package:
 
 ```bash
-spare-tire rename <wheel_path> <new_name> [-o <output_dir>]
+third-wheel rename <wheel_path> <new_name> [-o <output_dir>]
 
 # Examples:
-spare-tire rename icechunk-1.0.0-cp312-cp312-linux_x86_64.whl icechunk_v1
-spare-tire rename ./downloads/pkg.whl my_pkg_old -o ./renamed/
+third-wheel rename icechunk-1.0.0-cp312-cp312-linux_x86_64.whl icechunk_v1
+third-wheel rename ./downloads/pkg.whl my_pkg_old -o ./renamed/
 ```
 
 **Options:**
@@ -84,16 +84,16 @@ spare-tire rename ./downloads/pkg.whl my_pkg_old -o ./renamed/
 Download a compatible wheel from a package index:
 
 ```bash
-spare-tire download <package> [-o <output_dir>] [-i <index_url>] [--version <spec>] [--rename <new_name>]
+third-wheel download <package> [-o <output_dir>] [-i <index_url>] [--version <spec>] [--rename <new_name>]
 
 # Examples:
-spare-tire download numpy -o ./wheels/
-spare-tire download icechunk -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
-spare-tire download requests --version ">=2.0,<3"
-spare-tire download icechunk --version "<2" -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
+third-wheel download numpy -o ./wheels/
+third-wheel download icechunk -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
+third-wheel download requests --version ">=2.0,<3"
+third-wheel download icechunk --version "<2" -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
 
 # Download and rename in one command:
-spare-tire download icechunk --version "<2" --rename icechunk_v1 -o ./wheels/ \
+third-wheel download icechunk --version "<2" --rename icechunk_v1 -o ./wheels/ \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
 ```
 
@@ -104,14 +104,14 @@ spare-tire download icechunk --version "<2" --rename icechunk_v1 -o ./wheels/ \
 - `--version`: PEP 440 version specifier (e.g., `==1.0.0`, `<2`, `>=1.0,<2`)
 - `--list`: List available wheels without downloading
 - `--rename`: Rename the downloaded wheel to this package name (combines download + rename)
-- `--python-version`: Target Python version (e.g., `3.12`). Useful with `uvx` to download wheels for a different Python than the one running spare-tire.
+- `--python-version`: Target Python version (e.g., `3.12`). Useful with `uvx` to download wheels for a different Python than the one running third-wheel.
 
 ### 🔧 inspect
 
 Inspect a wheel's structure before renaming:
 
 ```bash
-spare-tire inspect <wheel_path> [--json]
+third-wheel inspect <wheel_path> [--json]
 
 # Example output:
 # Wheel: icechunk-1.1.14-cp312-cp312-macosx_11_0_arm64.whl
@@ -131,16 +131,16 @@ Start a PEP 503 proxy server that renames packages on-the-fly:
 
 ```bash
 # Install with server extras
-pip install spare-tire[server]
+pip install third-wheel[server]
 
 # Start proxy with CLI options
-spare-tire serve \
+third-wheel serve \
     -u https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     -r "icechunk=icechunk_v1:<2" \
     --port 8000
 
 # Or use a config file
-spare-tire serve -c proxy.toml
+third-wheel serve -c proxy.toml
 ```
 
 **Options:**
@@ -169,7 +169,7 @@ icechunk = { name = "icechunk_v1", version = "<2" }
 
 ```bash
 # Start the proxy
-spare-tire serve -u https://pypi.org/simple/ -r "requests=requests_old:<2"
+third-wheel serve -u https://pypi.org/simple/ -r "requests=requests_old:<2"
 
 # In another terminal, install from the proxy
 uv pip install requests_old --index-url http://127.0.0.1:8000/simple/
@@ -223,7 +223,7 @@ If the extension doesn't use the underscore prefix pattern, the tool will warn y
 ```bash
 # Clone and setup
 git clone <repo>
-cd spare-tire
+cd third-wheel
 uv sync --all-extras
 
 # Run tests

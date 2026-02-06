@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from spare_tire.server.config import RenameRule
+    from third_wheel.server.config import RenameRule
 
 
 def generate_root_index(projects: list[str]) -> str:
@@ -37,6 +37,8 @@ def generate_project_index(
     project: str,
     packages: list[dict[str, str | None]],
     rename_rule: RenameRule | None = None,
+    *,
+    strip_hashes: bool = False,
 ) -> str:
     """Generate the project page HTML listing all wheels.
 
@@ -44,6 +46,7 @@ def generate_project_index(
         project: Project name (may be renamed)
         packages: List of package dicts with 'filename', 'url', 'requires_python', 'hash'
         rename_rule: If set, rewrite filenames from original to new name
+        strip_hashes: If True, omit hash metadata (for patched packages whose content changes)
 
     Returns:
         PEP 503 compliant HTML
@@ -67,8 +70,8 @@ def generate_project_index(
         if pkg.get("requires_python"):
             attrs.append(f'data-requires-python="{pkg["requires_python"]}"')
 
-        if pkg.get("hash") and "#" not in url:
-            # Append hash as fragment
+        if pkg.get("hash") and "#" not in url and rename_rule is None and not strip_hashes:
+            # Append hash as fragment (skip for renamed/patched packages — content changes)
             attrs[0] = f'href="{url}#{pkg["hash"]}"'
 
         link = f"    <a {' '.join(attrs)}>{filename}</a>"

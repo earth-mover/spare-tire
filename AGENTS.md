@@ -1,10 +1,10 @@
-# Agent Instructions for spare-tire
+# Agent Instructions for third-wheel
 
-This document provides context and guidance for AI assistants working on the spare-tire project.
+This document provides context and guidance for AI assistants working on the third-wheel project.
 
 ## Project Overview
 
-**spare-tire** is a tool to rename Python wheel packages for multi-version installation. The primary use case is regression testing where you need both `icechunk` (v2) and `icechunk_v1` (renamed v1) installed simultaneously.
+**third-wheel** is a tool to rename Python wheel packages for multi-version installation. The primary use case is regression testing where you need both `icechunk` (v2) and `icechunk_v1` (renamed v1) installed simultaneously.
 
 ## Key Technical Concepts
 
@@ -33,7 +33,7 @@ This document provides context and guidance for AI assistants working on the spa
 ## Codebase Structure
 
 ```text
-src/spare_tire/
+src/third_wheel/
 ├── __init__.py      # Package exports
 ├── cli.py           # Click-based CLI with rich output
 ├── download.py      # PEP 503 index client using pypi-simple
@@ -156,7 +156,7 @@ The proxy server enables `uv sync` to install renamed packages without manual wh
 
 ### How It Works
 
-1. Start proxy: `spare-tire serve -u <upstream> -r "pkg=pkg_v1:<version>"`
+1. Start proxy: `third-wheel serve -u <upstream> -r "pkg=pkg_v1:<version>"`
 2. Proxy serves `/simple/pkg_v1/` endpoint with renamed wheel links
 3. When uv requests the wheel, proxy downloads from upstream, renames on-the-fly, serves renamed wheel
 4. uv installs `pkg_v1` as a normal package
@@ -183,18 +183,18 @@ resolution = "highest"
 
 To set up a project that installs both `icechunk` (v2) and `icechunk_v1` (v1):
 
-### Step 1: Install spare-tire with server extras
+### Step 1: Install third-wheel with server extras
 
 ```bash
-pip install spare-tire[server]
+pip install third-wheel[server]
 # or
-uvx --with spare-tire[server] spare-tire serve --help
+uvx --with third-wheel[server] third-wheel serve --help
 ```
 
 ### Step 2: Start the proxy server
 
 ```bash
-spare-tire serve \
+third-wheel serve \
     -u https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     -r "icechunk=icechunk_v1:<2" \
     --port 8123
@@ -269,16 +269,16 @@ See `tests/fixtures/dual-install/` for a complete working example with:
 
 ```bash
 # List available wheels for a package
-uv run spare-tire download icechunk --list -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
+uv run third-wheel download icechunk --list -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
 
 # Inspect a wheel
-uv run spare-tire inspect ./icechunk-*.whl
+uv run third-wheel inspect ./icechunk-*.whl
 
 # Rename a wheel
-uv run spare-tire rename ./icechunk-*.whl icechunk_v1 -o ./renamed/
+uv run third-wheel rename ./icechunk-*.whl icechunk_v1 -o ./renamed/
 
 # Download and rename in one step
-uv run spare-tire download icechunk \
+uv run third-wheel download icechunk \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --version "<2" \
     --rename icechunk_v1 \

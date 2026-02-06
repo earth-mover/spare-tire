@@ -9,7 +9,7 @@ from __future__ import annotations
 import zipfile
 from pathlib import Path
 
-from spare_tire.rename import rename_wheel
+from third_wheel.rename import rename_wheel
 
 
 def create_multi_module_wheel(tmp_path: Path, name: str = "testpkg") -> Path:
