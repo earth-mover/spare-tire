@@ -8,11 +8,11 @@ from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
-from spare_tire.server.app import create_app
-from spare_tire.server.config import PatchRule, ProxyConfig, RenameRule
-from spare_tire.server.html import generate_project_index
-from spare_tire.server.stream import original_filename_from_renamed, rewrite_wheel_filename
-from spare_tire.server.upstream import UpstreamClient
+from third_wheel.server.app import create_app
+from third_wheel.server.config import PatchRule, ProxyConfig, RenameRule
+from third_wheel.server.html import generate_project_index
+from third_wheel.server.stream import original_filename_from_renamed, rewrite_wheel_filename
+from third_wheel.server.upstream import UpstreamClient
 
 # ---------------------------------------------------------------------------
 # HTML generation tests

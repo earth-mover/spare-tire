@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from spare_tire.download import download_compatible_wheel
-from spare_tire.rename import rename_wheel
 from tests.conftest import install_wheel_in_venv, run_in_venv
+from third_wheel.download import download_compatible_wheel
+from third_wheel.rename import rename_wheel
 
 NIGHTLY_INDEX = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple"
 

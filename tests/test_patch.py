@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from spare_tire.patch import (
+from third_wheel.patch import (
     _update_dependency_references,
     patch_wheel,
     patch_wheel_from_bytes,

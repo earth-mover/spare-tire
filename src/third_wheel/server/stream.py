@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from spare_tire.server.upstream import UpstreamClient
+    from third_wheel.server.upstream import UpstreamClient
 
 
 async def rename_wheel_bytes(
@@ -21,7 +21,7 @@ async def rename_wheel_bytes(
     Returns:
         Renamed wheel bytes
     """
-    from spare_tire.rename import rename_wheel_from_bytes
+    from third_wheel.rename import rename_wheel_from_bytes
 
     return rename_wheel_from_bytes(wheel_bytes, new_name)
 
@@ -43,7 +43,7 @@ async def stream_and_patch_wheel(
     Returns:
         Patched wheel bytes
     """
-    from spare_tire.patch import patch_wheel_from_bytes
+    from third_wheel.patch import patch_wheel_from_bytes
 
     wheel_bytes = await client.download_wheel(upstream_url)
     patched_bytes, _patched_files = patch_wheel_from_bytes(wheel_bytes, old_dep, new_dep)

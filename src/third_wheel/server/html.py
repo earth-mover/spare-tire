@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from spare_tire.server.config import RenameRule
+    from third_wheel.server.config import RenameRule
 
 
 def generate_root_index(projects: list[str]) -> str:

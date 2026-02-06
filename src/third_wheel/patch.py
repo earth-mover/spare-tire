@@ -1,6 +1,6 @@
 """Patch dependency references in a wheel without renaming the package.
 
-While spare-tire's ``rename`` rewrites a package's own name and internal imports,
+While third-wheel's ``rename`` rewrites a package's own name and internal imports,
 ``patch`` rewrites references to a *dependency* throughout a wheel.
 
 Use case: after renaming ``zarr`` to ``zarr_v2``, any package that ``import zarr``
@@ -8,11 +8,11 @@ Use case: after renaming ``zarr`` to ``zarr_v2``, any package that ``import zarr
 
 CLI::
 
-    spare-tire patch anemoi_datasets-0.5.31-py3-none-any.whl zarr zarr_v2 -o ./wheels/
+    third-wheel patch anemoi_datasets-0.5.31-py3-none-any.whl zarr zarr_v2 -o ./wheels/
 
 Python API::
 
-    from spare_tire.patch import patch_wheel, patch_wheel_from_bytes
+    from third_wheel.patch import patch_wheel, patch_wheel_from_bytes
 
     result = patch_wheel(
         Path("anemoi_datasets-0.5.31-py3-none-any.whl"),
@@ -28,7 +28,7 @@ import re
 import zipfile
 from typing import TYPE_CHECKING
 
-from spare_tire.rename import _compute_record_hash
+from third_wheel.rename import _compute_record_hash
 
 if TYPE_CHECKING:
     from pathlib import Path

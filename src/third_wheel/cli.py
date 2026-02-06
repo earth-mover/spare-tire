@@ -1,4 +1,4 @@
-"""Command-line interface for spare-tire."""
+"""Command-line interface for third-wheel."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from spare_tire.download import download_compatible_wheel, list_wheels
-from spare_tire.patch import patch_wheel
-from spare_tire.rename import inspect_wheel, rename_wheel
+from third_wheel.download import download_compatible_wheel, list_wheels
+from third_wheel.patch import patch_wheel
+from third_wheel.rename import inspect_wheel, rename_wheel
 
 console = Console()
 err_console = Console(stderr=True)
@@ -22,7 +22,7 @@ err_console = Console(stderr=True)
 @click.group()
 @click.version_option()
 def main() -> None:
-    """🛞 Spare Tire - Rename Python wheel packages for multi-version installation."""
+    """🛞 Third Wheel - Rename Python wheel packages for multi-version installation."""
     pass
 
 
@@ -88,7 +88,7 @@ def patch(
 
     Rewrites all references to OLD_DEP → NEW_DEP inside the wheel's Python files
     without renaming the package itself. Useful after renaming a dependency with
-    spare-tire rename.
+    third-wheel rename.
 
     \b
     WHEEL_PATH: Path to the wheel file to patch
@@ -97,7 +97,7 @@ def patch(
 
     \b
     Example:
-        spare-tire patch anemoi_datasets-0.5.31-py3-none-any.whl zarr zarr_v2 -o ./wheels/
+        third-wheel patch anemoi_datasets-0.5.31-py3-none-any.whl zarr zarr_v2 -o ./wheels/
     """
     try:
         with console.status(f"[bold blue]Patching {wheel_path.name}..."):
@@ -257,15 +257,15 @@ def download(
 
     Examples:
 
-        spare-tire download numpy -o ./wheels/
+        third-wheel download numpy -o ./wheels/
 
-        spare-tire download icechunk -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
+        third-wheel download icechunk -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
 
-        spare-tire download requests --list
+        third-wheel download requests --list
 
-        spare-tire download icechunk --version "<2" --rename icechunk_v1 -o ./wheels/
+        third-wheel download icechunk --version "<2" --rename icechunk_v1 -o ./wheels/
 
-        spare-tire download icechunk --python-version 3.12 -o ./wheels/
+        third-wheel download icechunk --python-version 3.12 -o ./wheels/
     """
     try:
         if list_only:
@@ -368,12 +368,12 @@ def serve(
     \b
     Examples:
         # Start with CLI options
-        spare-tire serve \\
+        third-wheel serve \\
             -u https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \\
             -r "icechunk=icechunk_v1:<2"
 
         # Start with config file
-        spare-tire serve -c proxy.toml
+        third-wheel serve -c proxy.toml
 
     \b
     Config file format (proxy.toml):
@@ -390,11 +390,11 @@ def serve(
     try:
         import uvicorn
 
-        from spare_tire.server import create_app, load_config
+        from third_wheel.server import create_app, load_config
     except ImportError as e:
         err_console.print(
             "[red]🔧 Error:[/red] Server dependencies not installed.\n"
-            "Install with: [bold]pip install spare-tire[server][/bold]"
+            "Install with: [bold]pip install third-wheel[server][/bold]"
         )
         err_console.print(f"[dim]Missing: {e}[/dim]")
         sys.exit(1)
@@ -425,7 +425,7 @@ def serve(
         # Print startup info
         console.print(
             Panel.fit(
-                f"[bold]🛞 spare-tire proxy[/bold]\n"
+                f"[bold]🛞 third-wheel proxy[/bold]\n"
                 f"Listening on: [cyan]http://{cfg.host}:{cfg.port}[/cyan]\n"
                 f"Upstreams: {len(cfg.upstreams)}\n"
                 f"Renames: {len(cfg.renames)}\n"

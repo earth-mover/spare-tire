@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from spare_tire.rename import (
+from third_wheel.rename import (
     _build_wheel_filename,
     _compute_record_hash,
     _normalize_name,

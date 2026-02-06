@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from spare_tire.server.config import (
+from third_wheel.server.config import (
     PatchRule,
     ProxyConfig,
     RenameRule,
